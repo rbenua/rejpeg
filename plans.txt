@@ -8,6 +8,8 @@ JPEG decoding
   -Image data
     -Pass each line to libjpeg & try to decode
     -Keep trying new blocks until one works
+    -If you get a scanline out, think carefully about the image 
+     data entropy (esp. in the back half): if it's garbage it probably didn't match
 
 Other formats
   -PNG/GIF/others similarly formatted, can probably generalize
