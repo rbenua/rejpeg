@@ -1,10 +1,18 @@
+General idea: Take a binary blob file and a block size.  Search through it and
+attempt to reconstruct images without information about whole files or block
+ordering.
+
 Block selection/heristics/whatever:
   -various approaches here?
   -Entropy analysis, search based on filesystem type, ...
 
 JPEG decoding
+  -General approach: Throw data at libjpeg and use error callbacks to try
+   other blocks.
   -Metadata
     -Look for tags at expected offsets based on size
+    -Size is always either constant or denoted - false positives (4 bytes in
+     the expected location match) very unlikely.
   -Image data
     -Pass each line to libjpeg & try to decode
     -Keep trying new blocks until one works
@@ -12,4 +20,5 @@ JPEG decoding
      data entropy (esp. in the back half): if it's garbage it probably didn't match
 
 Other formats
-  -PNG/GIF/others similarly formatted, can probably generalize
+  -PNG/GIF/others similarly formatted, can probably generalize code.
+  -Entropy/similarity analysis code can be shared.
