@@ -9,14 +9,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #define DEFAULT_BLOCKSIZE 4096
 
-void **find_jpeg_headers(void *search_start, size_t search_len);
+void **find_jpeg_headers(int fd, struct stat *statbuf, size_t *offsets);
 
-void *next_block();
+void *next_block(int fd, size_t cur_offset);
 
-void *attempt_decode(void *start, size_t blocksize);
+void *attempt_decode(int fd, size_t offset, size_t blocksize);
 
 void usage(char **argv) {
   printf("Usage: %s [options] file\n"
@@ -55,5 +57,24 @@ int main(int argc, char **argv) {
   }
 
   blobfile = argv[optind];
+
+  /* Grab the image file */
+  struct stat statbuf;
+  int fd;
+  if (stat(blobfile, &statbuf) < 0) {
+    char *error = strerror(errno);
+    printf("Error statting image: %s\n", error);
+  }
+  if ((fd = open(blobfile, O_RDONLY)) < 0) {
+    char *error = strerror(errno);
+    printf("Error opening image: %s\n", error);
+  }
+
+  size_t *header_offsets;
+  int num_headers = find_jpeg_headers(fd, &statbuf, header_offsets);
+  
+  for (int i = 0; i < num_headers; i++) {
+    attempt_decode(fd, header, blocksize)
+  }
 
 }
