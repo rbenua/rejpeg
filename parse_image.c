@@ -18,11 +18,11 @@ void **find_jpeg_headers(int fd, struct stat *statbuf, size_t *offsets);
 
 void *next_block(int fd, size_t cur_offset);
 
-void *attempt_decode(int fd, size_t offset, size_t blocksize,
+void *attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
                      struct jpeg_decompress_struct *cinfo_backup){
   
-  rejpeg_source(int fd, size_t header_offset, size_t blocksize, cinfo);
+  dsource_new_header(header)
   jpeg_read_header(cinfo, TRUE);
   jpeg_start_decompress(cinfo);
 
@@ -41,6 +41,9 @@ void *attempt_decode(int fd, size_t offset, size_t blocksize,
 
     if(crossed_blocks == 1 && entropy_failed(buffer)){
       restore_info(cinfo, cinfo_backup);
+    }
+    else{
+      dsource_mark_current_used();
     }
   }
 }
@@ -101,9 +104,10 @@ int main(int argc, char **argv) {
   struct jpeg_decompress_struct cinfo, cinfo_backup;
   jpeg_create_decompress(&cinfo);
   jpeg_create_decompress(&cinfo_backup);
+  dsource_init(cinfo, blocksize, fd, &statbuf);
 
   for (int i = 0; i < num_headers; i++) {
-    attempt_decode(fd, header, blocksize, &cinfo, &cinfo_backup);
+    attempt_decode(header_offsets[i], blocksize, &cinfo, &cinfo_backup);
   }
 
 }
