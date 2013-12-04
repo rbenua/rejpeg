@@ -18,7 +18,11 @@ void **find_jpeg_headers(int fd, struct stat *statbuf, size_t *offsets);
 
 void *next_block(int fd, size_t cur_offset);
 
-void *attempt_decode(int fd, size_t offset, size_t blocksize);
+void *attempt_decode(int fd, size_t offset, size_t blocksize,
+                     struct jpeg_decompress_struct *cinfo,
+                     struct jpeg_decompress_struct *cinfo_backup){
+  rejpeg_source(int fd, size_t header_offset, size_t blocksize, cinfo);
+}
 
 void usage(char **argv) {
   printf("Usage: %s [options] file\n"
@@ -73,8 +77,12 @@ int main(int argc, char **argv) {
   size_t *header_offsets;
   int num_headers = find_jpeg_headers(fd, &statbuf, header_offsets);
   
+  struct jpeg_decompress_struct cinfo, cinfo_backup;
+  jpeg_create_decompress(&cinfo);
+  jpeg_create_decompress(&cinfo_backup);
+
   for (int i = 0; i < num_headers; i++) {
-    attempt_decode(fd, header, blocksize)
+    attempt_decode(fd, header, blocksize, &cinfo, &cinfo_backup);
   }
 
 }
