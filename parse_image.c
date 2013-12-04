@@ -21,7 +21,28 @@ void *next_block(int fd, size_t cur_offset);
 void *attempt_decode(int fd, size_t offset, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
                      struct jpeg_decompress_struct *cinfo_backup){
+  
   rejpeg_source(int fd, size_t header_offset, size_t blocksize, cinfo);
+  jpeg_read_header(cinfo, TRUE);
+  jpeg_start_decompress(cinfo);
+
+  int row_stride = cinfo->output_width * cinfo->output_components;
+  JSAMPARRAY buffer = (*cinfo->mem->alloc_sarray)
+    ((j_common_ptr)cinfo, JPOOL_IMAGE, row_stride, 1);
+
+  while(cinfo->output_scanline < cinfo->height){
+    backup_info(cinfo, cinfo_backup);
+    if(setjmp(jump_buffer_from_someplace)){
+      //decoding failed - restore the thingus and try again
+      restore_info(cinfo, cinfo_backup);
+    }
+    crossed_blocks = 0;
+    jpeg_read_scanlines(cinfo, buffer, 1);
+
+    if(crossed_blocks == 1 && entropy_failed(buffer)){
+      restore_info(cinfo, cinfo_backup);
+    }
+  }
 }
 
 void usage(char **argv) {
