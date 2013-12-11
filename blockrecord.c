@@ -19,7 +19,9 @@ struct blockrecord_s {
   void *block_buf;
   /* Current point in the block buffer*/
   void *cur_offset;
-  
+  /* 1 if we haven't read in any blocks from the new image yet, 0 otherwise */
+  char fresh_image;
+
   struct jpeg_decompress_struct *cinfo;
 };
 typedef struct blockrecord_s * blockrecord;
@@ -28,11 +30,11 @@ size_t get_idx(size_t blocksize, size_t block_offset) {
   return block_offset / blocksize;
 }
 
-blockrecord dsource_init(int fd, size_t blocksize, struct stat *statbuf
+blockrecord dsource_init(FILE *infile, size_t blocksize, struct stat *statbuf
                          struct jpeg_decompress_struct *cinfo) {
 
-  blockrecord record = malloc(sizeof(blockrecord_s));
-  record->fd = fd;
+  blockrecord record = malloc(sizeof(struct blockrecord_s));
+  record->blob = infile;
   record->blocksize = blocksize;
   record->nblocks = nblocks;
   record->used_blocks = calloc(sizeof(char), nblocks);
@@ -66,7 +68,6 @@ void *next_block(blockrecord record) {
       i++;
     }
   }
-  record->curidx = record->nextidx;
   record->nextidx = i;
   /* Copy the next block into the old half of the buffer. */
   void *dest;
@@ -90,7 +91,13 @@ void mark_current_used(blockrecord record) {
 /* We've finished with the current image.  Start from a new
  * header offset and clear tried block info. */
 void new_image(blockrecord record, size_t header_offset) {
-  
+  /* @TODO: swap out cinfo structs */
+  record->cur_offset = record->block_buf;
+  size_t new_start_idx = get_idx(record->blocksize, header_offset);
+  record->curidx = new_start_idx;
+  record->nextidx = new_start_idx;
+  record->startblock = new_start_idx;
+  record->fresh_image = 1;
 }
 
 void free_blockrecord(blockrecord record) {

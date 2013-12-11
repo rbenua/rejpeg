@@ -14,9 +14,7 @@
 
 #define DEFAULT_BLOCKSIZE 4096
 
-void **find_jpeg_headers(int fd, struct stat *statbuf, size_t *offsets);
-
-void *next_block(int fd, size_t cur_offset);
+void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets);
 
 void *attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
@@ -88,23 +86,23 @@ int main(int argc, char **argv) {
 
   /* Grab the image file */
   struct stat statbuf;
-  int fd;
+  FILE *infile;
   if (stat(blobfile, &statbuf) < 0) {
     char *error = strerror(errno);
     printf("Error statting image: %s\n", error);
   }
-  if ((fd = open(blobfile, O_RDONLY)) < 0) {
+  if ((infile = fopen(blobfile, "r")) < 0) {
     char *error = strerror(errno);
     printf("Error opening image: %s\n", error);
   }
 
   size_t *header_offsets;
-  int num_headers = find_jpeg_headers(fd, &statbuf, header_offsets);
+  int num_headers = find_jpeg_headers(infile, &statbuf, header_offsets);
   
   struct jpeg_decompress_struct cinfo, cinfo_backup;
   jpeg_create_decompress(&cinfo);
   jpeg_create_decompress(&cinfo_backup);
-  dsource_init(cinfo, blocksize, fd, &statbuf);
+  dsource_init(cinfo, blocksize, infile, &statbuf);
 
   for (int i = 0; i < num_headers; i++) {
     attempt_decode(header_offsets[i], blocksize, &cinfo, &cinfo_backup);
