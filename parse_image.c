@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include "datasrc.h"
+#include "blockrecord.h"
+
 #define DEFAULT_BLOCKSIZE 4096
 
 struct my_error_mgr {
@@ -48,11 +51,12 @@ int find_jpeg_headers(FILE *infile, size_t blocksize, size_t **offsets) {
       count++;
     }
   }
+}
 
 void attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo){
   
-  dsource_new_header(header)
+  new_image((blockrecord) cinfo->src, header);
   jpeg_read_header(cinfo, TRUE);
   jpeg_start_decompress(cinfo);
 
