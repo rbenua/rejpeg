@@ -77,9 +77,14 @@ fill_input_buffer (j_decompress_ptr cinfo)
 
   src->pub.next_input_byte = src->decbuf;
   src->pub.bytes_in_buffer = nbytes;
-  src->fresh_image = 0;
-
-  return TRUE;
+  if (src->fresh_image == 1) {
+    src->fresh_image = 0;
+    return TRUE;
+  } else {
+    /* If this isn't the first block we've read in, we need to kick back out
+     * to the main loop to check if it's full of shit */
+    return FALSE;
+  }
 }
 
 

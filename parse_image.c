@@ -17,11 +17,17 @@
 
 #define DEFAULT_BLOCKSIZE 4096
 
-void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets);
+void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets) {
+  char inbuf[4097];
+  inbuf[4096] = 0;
+  size_t total_offset = 0;
+  while (fread(inbuf, 1, 4096, infile) > 0) {
+    
+  }
 
 void *attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
-                     struct jpeg_decompress_struct *cinfo_backup){
+                     struct backup_info *cinfo_backup){
   
   dsource_new_header(header)
   jpeg_read_header(cinfo, TRUE);
@@ -99,16 +105,18 @@ int main(int argc, char **argv) {
     printf("Error opening image: %s\n", error);
   }
 
-  size_t *header_offsets;
+  char *header_offsets;
   int num_headers = find_jpeg_headers(infile, &statbuf, header_offsets);
   
-  struct jpeg_decompress_struct cinfo, cinfo_backup;
+  struct jpeg_decompress_struct cinfo;
   jpeg_create_decompress(&cinfo);
-  jpeg_create_decompress(&cinfo_backup);
-  dsource_init(cinfo, blocksize, infile, &statbuf);
-
+  
+  /* Initialize the block-record data source */
+  jpeg_blocks_src(cinfo, infile, blocksize, &statbuf);
+  
+  void *image_blocks;
   for (int i = 0; i < num_headers; i++) {
-    attempt_decode(header_offsets[i], blocksize, &cinfo, &cinfo_backup);
+    image_blocks = attempt_decode(header_offsets[i], blocksize, cinfo);
+    /* @TODO: combine blocks together and dump to file */
   }
-
 }

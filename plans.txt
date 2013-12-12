@@ -22,3 +22,10 @@ JPEG decoding
 Other formats
   -PNG/GIF/others similarly formatted, can probably generalize code.
   -Entropy/similarity analysis code can be shared.
+
+
+when fill buffer gets called not on a fresh image, kick back out to tell
+the main loop what's going on and to check entropy shits or whatever (return
+FALSE)
+
+fucked up huff error likely at that point, will longjmp back to the error handler.
