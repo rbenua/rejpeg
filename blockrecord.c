@@ -3,6 +3,10 @@
 #include <string.h>
 
 struct blockrecord_s {
+  struct jpeg_source_mgr pub;
+  
+  JOCTET *decbuf;
+
   FILE *blob;
   size_t blocksize;
   size_t nblocks;
@@ -15,14 +19,15 @@ struct blockrecord_s {
   size_t startblock;
   /* used_blocks[i] = 1 if block i has been used */
   char *used_blocks;
-  /* A buffer containing our current and previous buffers */
+  /* A circular buffer containing our current and previous block data */
   void *block_buf;
   /* Current point in the block buffer*/
   void *cur_offset;
   /* 1 if we haven't read in any blocks from the new image yet, 0 otherwise */
   char fresh_image;
+  
+  size_t last_read_size;
 
-  struct jpeg_decompress_struct *cinfo;
 };
 typedef struct blockrecord_s * blockrecord;
 
@@ -30,8 +35,7 @@ size_t get_idx(size_t blocksize, size_t block_offset) {
   return block_offset / blocksize;
 }
 
-blockrecord dsource_init(FILE *infile, size_t blocksize, struct stat *statbuf
-                         struct jpeg_decompress_struct *cinfo) {
+blockrecord init_blockrecord(FILE *infile, size_t blocksize, struct stat *statbuf) {
 
   blockrecord record = malloc(sizeof(struct blockrecord_s));
   record->blob = infile;
@@ -44,8 +48,6 @@ blockrecord dsource_init(FILE *infile, size_t blocksize, struct stat *statbuf
 
   record->block_buf = malloc(2 * blocksize);
   record->cur_offset = block_buf;
-  
-  record->cinfo = cinfo;
   
   return record;
 }
@@ -71,12 +73,12 @@ void *next_block(blockrecord record) {
   record->nextidx = i;
   /* Copy the next block into the old half of the buffer. */
   void *dest;
-  if (record->cur_offset < (block_buf + record->blocksize))
+  if ((record->cur_offset < (block_buf + record->blocksize)) || record->fresh_image)
     dest = block_buf;
   else
     dest = block_buf + record->blocksize;
   fseek(record->blob, record->curidx * record->blocksize, SEEK_SET);
-  size_t amt_read = fread(dest, 1, record->blocksize, blob);
+  record->last_read_size = fread(dest, 1, record->blocksize, blob);
   /* @TODO: How do we handle EOF? */
 }
 
