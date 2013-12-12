@@ -20,13 +20,25 @@
 
 #define DEFAULT_BLOCKSIZE 4096
 
-void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets) {
-  char inbuf[4097];
-  inbuf[4096] = 0;
+int find_jpeg_headers(FILE *infile, size_t blocksize, size_t **offsets) {
+  *offsets = malloc(10 * sizeof(size_t));
+  int count = 0;
+  int size = 10;
+  char inbuf[blocksize];
   size_t total_offset = 0;
-  while (fread(inbuf, 1, 4096, infile) > 0) {
-
+  while (fread(inbuf, 1, blocksize, infile) == blocksize) {
+    if(*(unsigned int *)inbuf & 0x00FFFFFFF == 0x00FFD8FF){
+      //it's probably a jpeg.
+      if(size == count){
+        *offsets = realloc(*offsets, 2 * size * sizeof(size_t));
+        size = size * 2;
+      }
+      offsets[count] = total_offset;
+      total_offset += blocksize;
+      count++;
+    }
   }
+}
 
 void *attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
@@ -109,7 +121,7 @@ int main(int argc, char **argv) {
   }
 
   char *header_offsets;
-  int num_headers = find_jpeg_headers(infile, &statbuf, header_offsets);
+  int num_headers = find_jpeg_headers(infile, &statbuf, &header_offsets);
   
   struct jpeg_decompress_struct cinfo;
   jpeg_create_decompress(&cinfo);
