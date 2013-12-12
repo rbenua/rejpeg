@@ -67,11 +67,11 @@ void attempt_decode(size_t header, size_t blocksize,
   while(cinfo->output_scanline < cinfo->output_height){
     if(setjmp((my_error_ptr)(cinfo->err)->setjmp_buffer)){
       //decoding failed - restore the thingus and try again
-      dsource_current_failed();
+      current_failed((blockrecord) cinfo->src);
     }
     jpeg_read_scanlines(cinfo, buffer, 1);
 
-    dsource_mark_current_used();
+    mark_current_used((blockrecord) cinfo->src);
   }
 }
 

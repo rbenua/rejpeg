@@ -21,9 +21,8 @@ blockrecord init_blockrecord(FILE *infile, size_t blocksize, struct stat *statbu
   return record;
 }
 
-/* Load the next available block.  Call whenever there's not enough
- * shit for an entire scanline. */
-void *next_block(blockrecord record) {
+/* Step curidx to the nextidx, and find the next unused block for nextidx. */
+void find_next_available(blockrecord record) {
   record->curidx = record->nextidx;
   /* Find the next untried, unused block. */
   int i = record->curidx + 1;
@@ -40,6 +39,14 @@ void *next_block(blockrecord record) {
     }
   }
   record->nextidx = i;
+}
+
+
+
+/* Load the next available block.  Call whenever there's not enough
+ * shit for an entire scanline. */
+void *next_block(blockrecord record) {
+  find_next_available(record);
   /* Copy the next block into the old half of the buffer. */
   void *dest;
   if ((record->cur_offset >= (record->block_buf + record->blocksize)) 
@@ -47,9 +54,24 @@ void *next_block(blockrecord record) {
     dest = record->block_buf;
   else
     dest = record->block_buf + record->blocksize;
+  record->cur_offset = dest;
   fseek(record->blob, record->curidx * record->blocksize, SEEK_SET);
   record->last_read_size = fread(dest, 1, record->blocksize, record->blob);
-  /* @TODO: How do we handle EOF? */
+}
+
+/* same as next_block but instead of swapping out the previous block for a new
+ * one we swap out the current one and back up */
+void current_failed(blockrecord record) {
+  find_next_available(record);
+  /* Copy the next block into the current half of the buffer. */
+  void *dest;
+  if ((record->cur_offset >= (record->block_buf + record->blocksize)) 
+       || record->fresh_image)
+    dest = record->block_buf + record->blocksize;
+  else
+    dest = record->block_buf;
+  fseek(record->blob, record->curidx * record->blocksize, SEEK_SET);
+  record->last_read_size = fread(dest, 1, record->blocksize, record->blob);
 }
 
 void mark_used(blockrecord record, size_t offset) {
@@ -63,7 +85,6 @@ void mark_current_used(blockrecord record) {
 /* We've finished with the current image.  Start from a new
  * header offset and clear tried block info. */
 void new_image(blockrecord record, size_t header_offset) {
-  /* @TODO: swap out cinfo structs */
   record->cur_offset = record->block_buf;
   size_t new_start_idx = get_idx(record->blocksize, header_offset);
   record->curidx = new_start_idx;
