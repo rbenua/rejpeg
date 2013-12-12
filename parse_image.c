@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include "datasrc.h"
+#include "blockrecord.h"
+
 #define DEFAULT_BLOCKSIZE 4096
 
 void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets) {
@@ -22,14 +25,14 @@ void **find_jpeg_headers(FILE *infile, struct stat *statbuf, size_t *offsets) {
   inbuf[4096] = 0;
   size_t total_offset = 0;
   while (fread(inbuf, 1, 4096, infile) > 0) {
-    
+
   }
 
 void *attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo,
                      struct backup_info *cinfo_backup){
   
-  dsource_new_header(header)
+  new_image((blockrecord) cinfo->src, header);
   jpeg_read_header(cinfo, TRUE);
   jpeg_start_decompress(cinfo);
 
