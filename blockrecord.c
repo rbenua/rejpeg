@@ -86,7 +86,7 @@ void mark_current_used(blockrecord record) {
 
 /* We've finished with the current image.  Start from a new
  * header offset and clear tried block info. */
-void new_image(blockrecord record, size_t header_offset) {
+void new_image(j_decompress_ptr cinfo, blockrecord record, size_t header_offset) {
   record->cur_offset = record->block_buf;
   size_t new_start_idx = get_idx(record->blocksize, header_offset);
   record->curidx = new_start_idx;
@@ -95,6 +95,9 @@ void new_image(blockrecord record, size_t header_offset) {
   fseek(record->blob, record->curidx * record->blocksize, SEEK_SET);
   record->last_read_size = fread(record->block_buf, 1, record->blocksize, record->blob);
   record->fresh_image = 1;
+  /* let libjpeg know that there's shit in the buffer */
+  cinfo->src->pub.bytes_in_buffer = record->last_read_size;
+  cinfo->src->pub.next_input_byte = record->block_buf;
 }
 
 void free_blockrecord(blockrecord record) {
