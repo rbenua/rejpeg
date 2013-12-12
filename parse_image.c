@@ -72,9 +72,13 @@ void attempt_decode(size_t header, size_t blocksize,
     ((j_common_ptr)cinfo, JPOOL_IMAGE, row_stride, 1);
 
   while(cinfo->output_scanline < cinfo->output_height){
+    void *old_input_ptr = cinfo->src->next_input_byte;
+    size_t old_left = cinfo->src->bytes_in_buffer;
     if(setjmp(((my_error_ptr)(cinfo->err))->setjmp_buffer)){
       //decoding failed - restore the thingus and try again
       current_failed((blockrecord) cinfo->src);
+      cinfo->src->next_input_byte = old_input_ptr;
+      cinfo->src->bytes_in_buffer = old_left;
     }
     jpeg_read_scanlines(cinfo, buffer, 1);
 
