@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <setjmp.h>
 
 #include "datasrc.h"
 #include "blockrecord.h"
@@ -30,32 +31,38 @@ typedef struct my_error_mgr * my_error_ptr;
 
 void my_error_emit(j_common_ptr cinfo){
   my_error_ptr err = (my_error_ptr)cinfo->err;
-  longjmp(err->setjmp_buffer);
+  longjmp(err->setjmp_buffer, 1);
 }
 
-int find_jpeg_headers(FILE *infile, size_t blocksize, size_t **offsets) {
+int find_jpeg_headers(struct jpeg_decompress_struct *cinfo,
+                      FILE *infile, size_t blocksize, size_t **offsets) {
   *offsets = malloc(10 * sizeof(size_t));
   int count = 0;
   int size = 10;
   char inbuf[blocksize];
   size_t total_offset = 0;
-  while (fread(inbuf, 1, blocksize, infile) == blocksize) {
-    if(*(unsigned int *)inbuf & 0x00FFFFFFF == 0x00FFD8FF){
+  size_t read;
+  while ((read = fread(inbuf, 1, blocksize, infile)) == blocksize) {
+    printf("in read %d bytes\n", read);
+    if((*(unsigned int *)inbuf & 0x00FFFFFFF) == 0x00FFD8FF){
       //it's probably a jpeg.
       if(size == count){
         *offsets = realloc(*offsets, 2 * size * sizeof(size_t));
         size = size * 2;
       }
-      offsets[count] = total_offset;
+      *offsets[count] = total_offset;
+      mark_used((blockrecord)cinfo->src, total_offset);
       total_offset += blocksize;
       count++;
     }
   }
+  printf("out read %d bytes\n", read);
+  return count;
 }
 
 void attempt_decode(size_t header, size_t blocksize,
                      struct jpeg_decompress_struct *cinfo){
-  
+  printf("Decoding image starting at header %d\n", header);
   new_image((blockrecord) cinfo->src, header);
   jpeg_read_header(cinfo, TRUE);
   jpeg_start_decompress(cinfo);
@@ -65,7 +72,7 @@ void attempt_decode(size_t header, size_t blocksize,
     ((j_common_ptr)cinfo, JPOOL_IMAGE, row_stride, 1);
 
   while(cinfo->output_scanline < cinfo->output_height){
-    if(setjmp((my_error_ptr)(cinfo->err)->setjmp_buffer)){
+    if(setjmp(((my_error_ptr)(cinfo->err))->setjmp_buffer)){
       //decoding failed - restore the thingus and try again
       current_failed((blockrecord) cinfo->src);
     }
@@ -120,26 +127,30 @@ int main(int argc, char **argv) {
     char *error = strerror(errno);
     printf("Error statting image: %s\n", error);
   }
-  if ((infile = fopen(blobfile, "r")) < 0) {
+  if ((infile = fopen(blobfile, "rb")) < 0) {
     char *error = strerror(errno);
     printf("Error opening image: %s\n", error);
   }
-
-  char *header_offsets;
-  int num_headers = find_jpeg_headers(infile, &statbuf, &header_offsets);
   
   struct jpeg_decompress_struct cinfo;
   jpeg_create_decompress(&cinfo);
   
   /* Initialize the block-record data source */
-  jpeg_blocks_src(cinfo, infile, blocksize, &statbuf);
+  jpeg_blocks_src(&cinfo, infile, blocksize, &statbuf);
+
+  size_t *header_offsets;
+  int num_headers = find_jpeg_headers(&cinfo, infile, blocksize, &header_offsets);
+  printf("Found %d headers:\n", num_headers);
+  for(int i = 0; i < num_headers; i++){
+    printf("%d, ", header_offsets[i]);
+  }
 
   struct my_error_mgr err;
   cinfo.err = jpeg_std_error(&err.pub);
-  err.pub.emit_msg = &my_error_emit;
+  err.pub.emit_message = &my_error_emit;
   
   void *image_blocks;
   for (int i = 0; i < num_headers; i++) {
-    attempt_decode(header_offsets[i], blocksize, cinfo);
+    attempt_decode(header_offsets[i], blocksize, &cinfo);
   }
 }

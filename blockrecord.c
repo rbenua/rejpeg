@@ -17,6 +17,7 @@ blockrecord init_blockrecord(FILE *infile, size_t blocksize, struct stat *statbu
 
   record->block_buf = malloc(2 * blocksize);
   record->cur_offset = record->block_buf;
+  record->decbuf = cur_offset;
   
   return record;
 }
@@ -29,7 +30,7 @@ void find_next_available(blockrecord record) {
   while (record->used_blocks[i]) {
     if (i == record->startblock) {
       /* We ran out of blocks to try :( */
-      return NULL;
+      return;
     } else if (i >= record->nblocks - 1) {
       /* Wrap around to the beginning.  This generally shouldn't happen unless the
        * image is ridiculously fragmented. */
@@ -46,6 +47,7 @@ void find_next_available(blockrecord record) {
 /* Load the next available block.  Call whenever there's not enough
  * shit for an entire scanline. */
 void next_block(blockrecord record) {
+  printf("used block %d\n", record->curidx);
   find_next_available(record);
   /* Copy the next block into the old half of the buffer. */
   void *dest;
@@ -90,6 +92,8 @@ void new_image(blockrecord record, size_t header_offset) {
   record->curidx = new_start_idx;
   record->nextidx = new_start_idx;
   record->startblock = new_start_idx;
+  fseek(record->blob, record->curidx * record->blocksize, SEEK_SET);
+  record->last_read_size = fread(record->block_buf, 1, record->blocksize, record->blob);
   record->fresh_image = 1;
 }
 

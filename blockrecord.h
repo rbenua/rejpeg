@@ -5,6 +5,8 @@
 #include "jpeg-6b/jpeglib.h"
 #include "jpeg-6b/jerror.h"
 
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -43,7 +45,9 @@ size_t get_idx(size_t blocksize, size_t block_offset);
 
 blockrecord init_blockrecord(FILE *infile, size_t blocksize, struct stat *statbuf);
 
-void *next_block(blockrecord record);
+void next_block(blockrecord record);
+
+void current_failed(blockrecord record);
 
 void mark_used(blockrecord record, size_t offset);
 

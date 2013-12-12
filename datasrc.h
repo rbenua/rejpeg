@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "jpeg-6b/jinclude.h"
 #include "jpeg-6b/jpeglib.h"
 #include "jpeg-6b/jerror.h"

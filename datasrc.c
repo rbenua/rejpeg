@@ -63,7 +63,7 @@ fill_input_buffer (j_decompress_ptr cinfo)
 
   next_block(src);
   size_t nbytes = src->last_read_size;
-  memcpy(src->decbuf, src->cur_offset, nbytes);
+  src->decbuf = src->cur_offset;
   
   if (nbytes <= 0) {
     if (src->fresh_image)	/* Treat empty input file as fatal error */
@@ -174,9 +174,6 @@ jpeg_blocks_src (j_decompress_ptr cinfo, FILE * infile, size_t blocksize,
    */
   if (cinfo->src == NULL) {	/* first time for this JPEG object? */
     cinfo->src = (struct jpeg_source_mgr *) init_blockrecord(infile, blocksize, statbuf);
-    cinfo->src = (struct jpeg_source_mgr *)
-      (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
-				  SIZEOF(struct blockrecord_s));
     src = (blockrecord) cinfo->src;
     src->decbuf = (JOCTET *)
       (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
