@@ -8,9 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <sys/types.h>
 
 #define DEFAULT_BLOCKSIZE 4096
 

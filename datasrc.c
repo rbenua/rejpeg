@@ -3,13 +3,7 @@
  *
  * Interface with the libjpeg decompression routine.
  */
-
-/* this is not a core library module, so it doesn't define JPEG_INTERNALS */
-#include "jinclude.h"
-#include "jpeglib.h"
-#include "jerror.h"
-
-#define INPUT_BUF_SIZE  4096	/* choose an efficiently fread'able size */
+#include "datasrc.h"
 
 /*
  * Initialize source --- called by jpeg_read_header
@@ -66,22 +60,22 @@ METHODDEF(boolean)
 fill_input_buffer (j_decompress_ptr cinfo)
 {
   blockrecord src = (blockrecord) cinfo->src;
-  size_t nbytes;
 
   next_block(src);
-  nbytes = memcpy(src->decbuf, src->cur_offset, src->last_read_size);
+  size_t nbytes = src->last_read_size;
+  memcpy(src->decbuf, src->cur_offset, nbytes);
   
   if (nbytes <= 0) {
-    if (src->start_of_file)	/* Treat empty input file as fatal error */
+    if (src->fresh_image)	/* Treat empty input file as fatal error */
       ERREXIT(cinfo, JERR_INPUT_EMPTY);
     WARNMS(cinfo, JWRN_JPEG_EOF);
     /* Insert a fake EOI marker */
-    src->buffer[0] = (JOCTET) 0xFF;
-    src->buffer[1] = (JOCTET) JPEG_EOI;
+    src->decbuf[0] = (JOCTET) 0xFF;
+    src->decbuf[1] = (JOCTET) JPEG_EOI;
     nbytes = 2;
   }
 
-  src->pub.next_input_byte = src->buffer;
+  src->pub.next_input_byte = src->decbuf;
   src->pub.bytes_in_buffer = nbytes;
   src->fresh_image = 0;
 
@@ -174,12 +168,12 @@ jpeg_blocks_src (j_decompress_ptr cinfo, FILE * infile, size_t blocksize,
    * manager serially with the same JPEG object.  Caveat programmer.
    */
   if (cinfo->src == NULL) {	/* first time for this JPEG object? */
-    cinfo->src = init_blockrecord(infile, blocksize, statbuf);
+    cinfo->src = (struct jpeg_source_mgr *) init_blockrecord(infile, blocksize, statbuf);
     cinfo->src = (struct jpeg_source_mgr *)
       (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
-				  SIZEOF(my_source_mgr));
+				  SIZEOF(struct blockrecord_s));
     src = (blockrecord) cinfo->src;
-    src->buffer = (JOCTET *)
+    src->decbuf = (JOCTET *)
       (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
 				  blocksize * SIZEOF(JOCTET));
   }
