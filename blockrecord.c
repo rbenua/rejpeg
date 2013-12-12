@@ -45,7 +45,7 @@ void find_next_available(blockrecord record) {
 
 /* Load the next available block.  Call whenever there's not enough
  * shit for an entire scanline. */
-void *next_block(blockrecord record) {
+void next_block(blockrecord record) {
   find_next_available(record);
   /* Copy the next block into the old half of the buffer. */
   void *dest;
