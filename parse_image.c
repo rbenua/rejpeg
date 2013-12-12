@@ -17,6 +17,19 @@
 
 #define DEFAULT_BLOCKSIZE 4096
 
+struct my_error_mgr {
+  struct jpeg_error_mgr pub;  /* "public" fields */
+
+  jmp_buf setjmp_buffer;  /* for return to caller */
+};
+
+typedef struct my_error_mgr * my_error_ptr;
+
+void my_error_emit(j_common_ptr cinfo){
+  my_error_ptr err = (my_error_ptr)cinfo->err;
+  longjmp(err->setjmp_buffer);
+}
+
 int find_jpeg_headers(FILE *infile, size_t blocksize, size_t **offsets) {
   *offsets = malloc(10 * sizeof(size_t));
   int count = 0;
@@ -36,9 +49,8 @@ int find_jpeg_headers(FILE *infile, size_t blocksize, size_t **offsets) {
     }
   }
 
-void *attempt_decode(size_t header, size_t blocksize,
-                     struct jpeg_decompress_struct *cinfo,
-                     struct backup_info *cinfo_backup){
+void attempt_decode(size_t header, size_t blocksize,
+                     struct jpeg_decompress_struct *cinfo){
   
   dsource_new_header(header)
   jpeg_read_header(cinfo, TRUE);
@@ -48,21 +60,14 @@ void *attempt_decode(size_t header, size_t blocksize,
   JSAMPARRAY buffer = (*cinfo->mem->alloc_sarray)
     ((j_common_ptr)cinfo, JPOOL_IMAGE, row_stride, 1);
 
-  while(cinfo->output_scanline < cinfo->height){
-    backup_info(cinfo, cinfo_backup);
-    if(setjmp(jump_buffer_from_someplace)){
+  while(cinfo->output_scanline < cinfo->output_height){
+    if(setjmp((my_error_ptr)(cinfo->err)->setjmp_buffer)){
       //decoding failed - restore the thingus and try again
-      restore_info(cinfo, cinfo_backup);
+      dsource_current_failed();
     }
-    crossed_blocks = 0;
     jpeg_read_scanlines(cinfo, buffer, 1);
 
-    if(crossed_blocks == 1 && entropy_failed(buffer)){
-      restore_info(cinfo, cinfo_backup);
-    }
-    else{
-      dsource_mark_current_used();
-    }
+    dsource_mark_current_used();
   }
 }
 
@@ -124,10 +129,13 @@ int main(int argc, char **argv) {
   
   /* Initialize the block-record data source */
   jpeg_blocks_src(cinfo, infile, blocksize, &statbuf);
+
+  struct my_error_mgr err;
+  cinfo.err = jpeg_std_error(&err.pub);
+  err.pub.emit_msg = &my_error_emit;
   
   void *image_blocks;
   for (int i = 0; i < num_headers; i++) {
-    image_blocks = attempt_decode(header_offsets[i], blocksize, cinfo);
-    /* @TODO: combine blocks together and dump to file */
+    attempt_decode(header_offsets[i], blocksize, cinfo);
   }
 }
