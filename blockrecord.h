@@ -35,7 +35,7 @@ struct blockrecord_s {
   void *cur_offset;
   /* 1 if we haven't read in any blocks from the new image yet, 0 otherwise */
   char fresh_image;
-  
+  /* how many bytes we read in last time we called next_block */
   size_t last_read_size;
 
 };
@@ -45,15 +45,15 @@ size_t get_idx(size_t blocksize, size_t block_offset);
 
 blockrecord init_blockrecord(FILE *infile, size_t blocksize, struct stat *statbuf);
 
-void next_block(blockrecord record);
+int next_block(blockrecord record);
 
-void current_failed(blockrecord record);
+//void current_failed(blockrecord record);
 
 void mark_used(blockrecord record, size_t offset);
 
 void mark_current_used(blockrecord record);
 
-void new_image(blockrecord record, size_t header_offset);
+void new_image(struct jpeg_decompress_struct *cinfo, blockrecord record, size_t header_offset);
 
 void free_blockrecord(blockrecord record);
 

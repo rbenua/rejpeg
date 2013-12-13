@@ -17,11 +17,6 @@
 
 #include "blockrecord.h"
 
-/*
- * Initialize source --- called by jpeg_read_header
- * before any data is actually read.
- */
-
 METHODDEF(void)
 init_source (j_decompress_ptr cinfo);
 
