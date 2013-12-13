@@ -90,14 +90,13 @@ void attempt_decode(size_t header, size_t blocksize,
 }
 
 void usage(char **argv) {
-  printf("Usage: %s [options] file\n"
-         "Options:\n"
-         "-b    Set block size [Default: %d]\n",
+  printf("Usage: %s file [blocksize]\n"
+         "Block size defaults to %d.\n",
          argv[0], DEFAULT_BLOCKSIZE);
 }
           
 int main(int argc, char **argv) {
-  if (argc < 2) {
+  if (argc < 2 || argc > 3) {
     usage(argv);
     exit(1);
   }
@@ -106,18 +105,9 @@ int main(int argc, char **argv) {
   char *blobfile;
   /* get command line arguments */
 
-  opterr = 0;
-  char c;
-  while ((c = getopt(argc, argv, "b")) != -1) {
-    switch (c) {
-      case 'b':
-        blocksize = (size_t)atol(optarg);
-        break;
-      case '?':
-      default:
-        usage(argv);
-        exit(1);
-    }
+  if (argc == 3) {
+    blocksize = (size_t)atol(argv[2]);
+    printf("Using block size %d\n", blocksize);
   }
   
   if (blocksize <= 0) {
@@ -125,7 +115,7 @@ int main(int argc, char **argv) {
     blocksize = DEFAULT_BLOCKSIZE;
   }
 
-  blobfile = argv[optind];
+  blobfile = argv[1];
 
   /* Grab the image file */
   struct stat statbuf;
